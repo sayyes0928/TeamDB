@@ -4,219 +4,221 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Scanner;
 
 class UserDAO {
 	Connection conn = null;
 	Statement stmt = null;
 	PreparedStatement pstmt = null;
-	boolean result;
+
 	Scanner sc = new Scanner(System.in);
+	UserDTO userDTO = new UserDTO();
+	InputData input = new InputData();
+	View view = new View();
+
+	Boolean login = false; // 로그인이 성공되었으면 true를 반환해 다음 단계로 넘어갈 수 있게 만든다
 
 	static final String JD = "com.mysql.jdbc.Driver";
 	static final String DBURL = "jdbc:mysql://localhost/mydb";
+	static final String dbID = "root";
+	static final String dbPW = "root";
 
-	UserDAO() { // SQL 연결
+	UserDAO() { // SQL 연결, 생성자이기 때문에 객체 생성시 호출
 		try {
 			Class.forName(JD);
-			conn = DriverManager.getConnection(DBURL, "root", "root");
 			System.out.println("연결성공");
-
 		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
 			System.out.println("드라이버 로딩 실패");
-		} catch (SQLException e) {
-			System.out.println("ERROR : " + e);
 		}
 	}
 
-	void login() { // 로그인 메소드
-		Scanner sc = new Scanner(System.in);
-		System.out.println("로그인을 선택하셨습니다");
-		System.out.println("=======================");
-		System.out.println("아이디를 입력해주세요:");
-		String user_id = sc.next();
-		System.out.println("비밀번호를 입력해주세요");
-		String user_pw = sc.next();
+	public void connect() { // DB와 연결하는 메소드
+		try {
+			conn = DriverManager.getConnection(DBURL, dbID, dbPW);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 
+	public void disconnect() { // 연결된 DB를 닫아주는 메소드
+		if (stmt != null) {
+			try {
+				stmt.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+		if (pstmt != null) {
+			try {
+				pstmt.close();
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
+		}
+//		if (conn != null) {
+//			try {
+//				conn.close();
+//			} catch (SQLException e) {
+//				e.printStackTrace();
+//			}
+//		}
+
+	}
+
+	int idCheck() { // InputData 클래스에서 회원가입시 ID중복확인을 위해 호출되어 사용함
+		connect();
+		String idcheck = input.IdCheck(); // id입력받기
+		int result = 0;
+		try {
+			stmt = conn.createStatement();
+			String sqlIdcheck;
+			sqlIdcheck = "select user_id from user where user_id = '" + input.userDTO.getId() + "'"; // user_id 필드에 중복
+																										// 값이 있는지 확인
+			ResultSet rs = stmt.executeQuery(sqlIdcheck); //
+			if (rs.next()) {
+				if (idcheck.equals(rs.getString(1))) {
+					result = -1; // 중복값이 있을 때 -1을 반환값에 담아 오류가 있음을 알려준다
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			disconnect();
+		}
+		return result;
+	}
+
+	void join() { // 회원가입
+		// DB연결
+		connect();
+		InputData inputDB = new InputData(); // InputData Class에서 입력받은 값을들 저장하기위해 새로운 객체 생성
+		inputDB.insertInfo(); // 이 메소드에서만 사용함
+
+		try {
+			String sqlJoin;
+			sqlJoin = "insert into user values(?,?,?,?,?,?,?,?,?)";
+			pstmt = conn.prepareStatement(sqlJoin);
+			pstmt.setString(1, input.userDTO.getId());
+			pstmt.setString(2, inputDB.userDTO.getPw());
+			pstmt.setString(3, inputDB.userDTO.getName());
+			pstmt.setString(4, inputDB.userDTO.getbirth());
+			pstmt.setInt(5, inputDB.userDTO.getAge());
+			pstmt.setString(6, inputDB.userDTO.getMail());
+			pstmt.setString(7, inputDB.userDTO.getTel());
+			pstmt.setString(8, inputDB.userDTO.getAddr());
+			pstmt.setString(9, inputDB.userDTO.getGender());
+			pstmt.executeUpdate(); // database 에 valuse 를 update! //
+			System.out.println("회원가입이 완료되었습니다.");
+			System.out.println("=======================");
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			// TODO: handle exception
+		} finally {
+			disconnect();
+		}
+	}
+
+	String idexist(String id) {
+		connect();
+		String pass = null;
 		try {
 			stmt = conn.createStatement();
 			String sql2;
-			sql2 = "select user_pw from user where user_id = '" + user_id + "'"; // userid적으면 입력해있는 pw가 나옴
-
+			sql2 = "select user_pw from user where user_id = '" + input.userDTO.getId() + "'"; // userid적으면 입력해있는 pw가 나옴
 			ResultSet rs2 = stmt.executeQuery(sql2); // rs2에는 내가 쳐준 user_id에 맞는 테이블의 pw가 들어있다.
-			if (rs2.next()) { // 만약에 rs2.next pw라인의 첫번째값일때
+			if (rs2.next()) {
+				pass = rs2.getString(1);
 
-				if (rs2.getString(1).equals(user_pw)) { // rs2의 테이블값과 내가 입력한 pw의 값이 같으면
-					System.out.println("성공");
-					String sql;
+			}
+		} catch (Exception e) {
+			System.out.println("ID가 틀렸습니다");
+		} finally {
+			disconnect();
+		}
+		return pass;
+	}
 
-					sql = "select * from user where user_id = '" + user_id + "'"; // 내가 입력해준id 테이블값의 전체 테이블값들 출력
-					ResultSet rs = stmt.executeQuery(sql); // 값을저장해준 모든정보를 결과 객체 rs에 담음
-					if (rs.next()) {
-						System.out.println("로그인 되었습니다 .회원님의 정보입니다!");
-						System.out.println("=======================");
-						System.out.println("ID :" + rs.getString(1));
-						System.out.println("PSWD :" + rs.getString(2));
-						System.out.println("**********************");
-						System.out.println("Name :" + rs.getString(3));
-						System.out.println("birth : " + rs.getDate(4));
-						System.out.println("Age :" + rs.getInt(5));
-						System.out.println("Mail :" + rs.getString(6));
-						System.out.println("Tel : " + rs.getString(7));
-						System.out.println("Addr :" + rs.getString(8));
-						System.out.println("Gender :" + rs.getString(9));
-						System.out.println("=======================");
-
-						System.out.println("수정이나 삭제 선택해주세요");
-						System.out.println("[1]수정");
-						System.out.println("[2]삭제");
-						System.out.println("[3]초기 화면으로");
-						int sel = sc.nextInt();
-
-						if (sel == 1) {
-							int i = sc.nextInt();
-							if (i == 0) {
-								System.out.println("시스템이 종료되었습니다");
-								System.exit(0);
-							}
-
-							update(rs.getString(i)); // ??
-						} else if (sel == 2) {
-							delete(rs.getString(1));
-						} else {
-
-						}
-					} else {
-						System.out.println("비밀번호가 틀렸습니다!");
+	void login() { // 로그인 메소드
+		connect();
+		input.loginInput();
+		try {
+			stmt = conn.createStatement();
+			String pass = idexist(input.userDTO.getId());
+			if (pass.equals(input.userDTO.getPw())) { // rs2의 테이블값과 내가 입력한 pw의 값이 같으면
+				String sql;
+				sql = "select * from user where user_id = '" + input.userDTO.getId() + "'"; // 내가 입력해준id 테이블값의 전체의
+				ResultSet rs = stmt.executeQuery(sql); // 값을저장해준 모든정보를 결과 객체 rs에 담음
+				if (rs.next()) {
+					System.out.println("로그인 되었습니다 .회원님의 정보입니다!");
+					System.out.println("=======================");
+					for (int i = 1; i < 10; i++) { // 데이테베이스 값을 출력하기위한 메소드
+						view.view(i, rs.getString(i));
 					}
+					// 로그인 된 정보를 객체에 담아 SET 수정 파트에서 사용
+					userDTO.setId(rs.getString(1));
+					userDTO.setPw(rs.getString(2));
+					userDTO.setName(rs.getString(3));
+					userDTO.setbirth(rs.getString(4));
+					userDTO.setAge(rs.getInt(5));
+					userDTO.setMail(rs.getString(6));
+					userDTO.setTel(rs.getString(7));
+					userDTO.setAddr(rs.getString(8));
+					userDTO.setGender(rs.getString(9));
+					login = true;
 				}
-			}
-		}
-
-		catch (
-
-		Exception e) {
-			System.out.println("호출실패");
-		}
-
-	}
-
-	void delete(String id) {
-		Scanner sc = new Scanner(System.in);
-		try {
-			String sql2;
-			System.out.println("정말로 삭제하시겠습니까?");
-			int del = 0;
-			System.out.println("[1]예");
-			System.out.println("[2]아니오");
-			del = sc.nextInt();
-
-			if (del == 1) {
-				System.out.println("정상적으로 삭제되어 프로그램을 종료합니다.");
-				sql2 = "delete from user where user_id ='" + id + "'";
-				pstmt = conn.prepareStatement(sql2);
-				pstmt.executeUpdate(); // database 에 valuse 를 update! //
-				pstmt.close();
-			} else if (del == 2) {
-				System.out.println("아니오를 선택하여 프로그램을 종료하니다.");
-				System.exit(0);
-			}
-		} catch (Exception e) {
-			// TODO: handle exception
-		}
-	}
-
-	void join(Model model) {
-
-		try {
-			System.out.println("회원가입 화면입니다");
-			String sql2;
-
-			System.out.println("ID를 입력해주세요");
-			String id = sc.next();
-			System.out.println("비밀번호를 입력해주세요");
-			String pw = sc.next();
-			System.out.println("이름을 입력해주세요");
-			String name = sc.next();
-			System.out.println("생일을 입력해주세요");
-			String birth = sc.next();
-			System.out.println("나이를 입력해주세요");
-			int age = sc.nextInt();
-			System.out.println("mail을 입력해주세요");
-			String mail = sc.next();
-			System.out.println("전화번호를 입력해주세요");
-			String tel = sc.next();
-			System.out.println("주소를 입력해주세요");
-			String addr = sc.next();
-			System.out.println("성별을 입력해주세요");
-			System.out.println("[1] 남성  [2] 여성");
-			String gender = null;
-			int genNum = sc.nextInt();
-			if (genNum == 1) {
-				gender = "mail";
-			} else if (genNum == 2) {
-				gender = "female";
 			} else {
-				System.out.println("지정된 번호만 입력해주세요");
+				System.out.println("비밀번호가 틀렸습니다!");
 			}
-
-			if (!id.equals(null) || !pw.equals(null) || !name.equals(null) || !birth.equals(null) || !mail.equals(null)
-					|| !tel.equals(null) || !addr.equals(null) || !gender.equals(null)) {
-				sql2 = "insert into user values(?,?,?,?,?,?,?,?,?)";
-				pstmt = conn.prepareStatement(sql2);
-				pstmt.setString(1, id);
-				pstmt.setString(2, pw);
-				pstmt.setString(3, name);
-				pstmt.setString(4, birth);
-				pstmt.setInt(5, age);
-				pstmt.setString(6, mail);
-				pstmt.setString(7, tel);
-				pstmt.setString(8, addr);
-				pstmt.setString(9, gender);
-				pstmt.executeUpdate(); // database 에 valuse 를 update! //
-				pstmt.close();
-				System.out.println("회원가입이 완료되었습니다.");
-			}
-
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
+			e.printStackTrace();
+			System.out.println("호출실패");
+		} finally {
+			disconnect();
 		}
-
 	}
 
-	void update(String i) {
-		String[] list = { "use_pW", "name", "birth", "age", "mail", "tel", "addr", "gender" };
-		System.out.println("수정하고 싶은신 내용의 번호를 입력해주세요");
+	void delete() {
+		connect();
+		try {
 
-		System.out.println("[1]로그인 화면으로 돌아가기");
-		System.out.println("[2]pw");
-		System.out.println("[3]name");
-		System.out.println("[4]birth");
-		System.out.println("[5]age");
-		System.out.println("[6]mail");
-		System.out.println("[7]tel");
-		System.out.println("[8]addr");
-		System.out.println("[9]gender");
-		System.out.println("[0]종료");
+			view.deleteSelect();
+			input.deleteSelect();
 
-		int updateNum = (sc.nextInt() - 2); // 수정할 컨텐츠 번호 입력 받기
+			String sqlDel;
+			sqlDel = "delete from user where user_id ='" + userDTO.getId() + "'";
+			pstmt = conn.prepareStatement(sqlDel);
+			pstmt.executeUpdate(); // database 에 valuse 를 update! //
+			pstmt.close();
+			System.out.println("정상적으로 삭제되었습니다.");
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			disconnect();
+		}
+	}
 
-		System.out.println(list[updateNum] + "를 선택하셨습니다.");//
-		System.out.println("수정하실 내용을 입력해 주세요");
+	void update() {
+		connect();
+		input.updateInfo();
+		String[] list = { "null", "user_pW", "user_name", "user_birth", "user_age", "user_mail", "user_tel",
+				"user_addr", "user_gender" };
 
-		String change = sc.next(); // 변경할 값을 입력받을 변수
 		try {
 			String sql2;
-			sql2 = "update user set " + list[updateNum] + " = '" + change + "' where " + list[updateNum] + "= '" + i
-					+ "'";
+			sql2 = "update user set " + list[input.updateNum] + " = '" + input.change + "' where user_id= '"
+					+ userDTO.getId() + "'";
 			pstmt = conn.prepareStatement(sql2);
 			pstmt.executeUpdate(); // database 에 valuse 를 update! //
 			pstmt.close();
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			System.out.println("수정실패. 입력하신 내용을 확인해 주세요");
+		} finally {
+			disconnect();
 		}
-
 	}
 }

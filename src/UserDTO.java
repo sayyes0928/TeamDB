@@ -1,7 +1,6 @@
 import java.util.Scanner;
 
-public class Model {
-	Scanner sc = new Scanner(System.in);
+public class UserDTO {
 	String id;
 	String pw;
 	String name;
@@ -84,7 +83,7 @@ public class Model {
 		this.gender = gender;
 	}
 
-	Model() {
+	UserDTO() {
 		
 
 	}

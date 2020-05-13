@@ -1,4 +1,4 @@
-/InsertInfo.class
-/Main.class
-/Model.class
-/UserDAO.class
+/Controller.class
+/InputData.class
+/UserDTO.class
+/View.class
