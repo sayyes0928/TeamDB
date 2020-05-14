@@ -13,12 +13,15 @@ public class Controller {
 			switch (num) {
 			case 1:
 				System.out.println("회원가입 화면입니다");
-				int idOK  = userDAO.idCheck();
-				if (idOK != -1) {
-					userDAO.join();
-				} else {
-					System.out.println("중복된 ID가 있습니다.");
-					idOK  = userDAO.idCheck();
+				int idOK = userDAO.idCheck();
+				while (true) {
+					if (idOK != -1) {
+						userDAO.join();
+						break;
+					} else {
+						System.out.println("중복된 ID가 있습니다.");
+						idOK = userDAO.idCheck();
+					}
 				}
 				break;
 			case 2:
@@ -32,7 +35,7 @@ public class Controller {
 					} else if (select == 2) {
 						userDAO.delete();
 					}
-				}else {
+				} else {
 					System.out.println("로그인에 실패했습니다.");
 				}
 				break;
@@ -40,7 +43,7 @@ public class Controller {
 				System.out.println("시스템이 종료되었습니다");
 				System.exit(0);
 			}
-			
+
 		}
 
 	}

@@ -84,7 +84,6 @@ class UserDAO {
 		} catch (Exception e) {
 			e.printStackTrace();
 		} finally {
-			disconnect();
 		}
 		return result;
 	}
@@ -93,7 +92,7 @@ class UserDAO {
 		// DB연결
 		connect();
 		InputData inputDB = new InputData(); // InputData Class에서 입력받은 값을들 저장하기위해 새로운 객체 생성
-		inputDB.insertInfo(); // 이 메소드에서만 사용함
+		inputDB.insertInfo(); // 이 메소드에서만 사용함, 사용자에게 회원가입란에 값을 입력받기위한 메소드
 
 		try {
 			String sqlJoin;
@@ -109,6 +108,7 @@ class UserDAO {
 			pstmt.setString(8, inputDB.userDTO.getAddr());
 			pstmt.setString(9, inputDB.userDTO.getGender());
 			pstmt.executeUpdate(); // database 에 valuse 를 update! //
+			pstmt.close();
 			System.out.println("회원가입이 완료되었습니다.");
 			System.out.println("=======================");
 
@@ -121,7 +121,7 @@ class UserDAO {
 		}
 	}
 
-	String idexist(String id) {
+	String idexist(String id) { // 로그인시 ID가 있는지 확인하고, 있으면 pass를 반환
 		connect();
 		String pass = null;
 		try {
@@ -131,7 +131,6 @@ class UserDAO {
 			ResultSet rs2 = stmt.executeQuery(sql2); // rs2에는 내가 쳐준 user_id에 맞는 테이블의 pw가 들어있다.
 			if (rs2.next()) {
 				pass = rs2.getString(1);
-
 			}
 		} catch (Exception e) {
 			System.out.println("ID가 틀렸습니다");
@@ -142,11 +141,11 @@ class UserDAO {
 	}
 
 	void login() { // 로그인 메소드
+		String pass = idexist(input.userDTO.getId()); // 데이터베이스에 ID가 존재하는지 유무 확인 후 있으면 pass 가져오기
 		connect();
 		input.loginInput();
 		try {
 			stmt = conn.createStatement();
-			String pass = idexist(input.userDTO.getId());
 			if (pass.equals(input.userDTO.getPw())) { // rs2의 테이블값과 내가 입력한 pw의 값이 같으면
 				String sql;
 				sql = "select * from user where user_id = '" + input.userDTO.getId() + "'"; // 내가 입력해준id 테이블값의 전체의
@@ -184,14 +183,13 @@ class UserDAO {
 		connect();
 		try {
 
-			view.deleteSelect();
-			input.deleteSelect();
+			view.deleteSelect(); // 삭제 확인 메시지 출력
+			input.deleteSelect(); // 예 , 아니오 선택
 
 			String sqlDel;
 			sqlDel = "delete from user where user_id ='" + userDTO.getId() + "'";
 			pstmt = conn.prepareStatement(sqlDel);
 			pstmt.executeUpdate(); // database 에 valuse 를 update! //
-			pstmt.close();
 			System.out.println("정상적으로 삭제되었습니다.");
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -205,14 +203,12 @@ class UserDAO {
 		input.updateInfo();
 		String[] list = { "null", "user_pW", "user_name", "user_birth", "user_age", "user_mail", "user_tel",
 				"user_addr", "user_gender" };
-
 		try {
 			String sql2;
 			sql2 = "update user set " + list[input.updateNum] + " = '" + input.change + "' where user_id= '"
 					+ userDTO.getId() + "'";
 			pstmt = conn.prepareStatement(sql2);
 			pstmt.executeUpdate(); // database 에 valuse 를 update! //
-			pstmt.close();
 
 		} catch (Exception e) {
 			e.printStackTrace();
